@@ -1,0 +1,13 @@
+.DS_Store
+.build/
+.swiftpm/
+.superpowers/
+DerivedData/
+*.xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+.env
+.env.*
+!.env.example
+
