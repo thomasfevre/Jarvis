@@ -65,11 +65,24 @@ public struct PlanCommand: Equatable, Sendable {
 
 public enum ObserveCommand {
     public static func render(_ observation: ScreenObservation) -> String {
-        """
+        let tree = observation.accessibilityTree.trimmingCharacters(in: .whitespacesAndNewlines)
+        if tree.isEmpty {
+            return """
+            Focused application: \(observation.focusedApplication ?? "unknown")
+
+            Accessibility tree:
+            No Accessibility elements were returned.
+
+            If this is unexpected, grant Accessibility permission to the terminal app running Jarvis:
+            System Settings > Privacy & Security > Accessibility
+            """
+        }
+
+        return """
         Focused application: \(observation.focusedApplication ?? "unknown")
 
         Accessibility tree:
-        \(observation.accessibilityTree)
+        \(tree)
         """
     }
 }

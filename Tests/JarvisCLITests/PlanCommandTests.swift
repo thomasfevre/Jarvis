@@ -48,6 +48,19 @@ import JarvisCore
     #expect(output.contains("[button] New note"))
 }
 
+@Test func observeCommandRendersHelpWhenAccessibilityTreeIsEmpty() {
+    let output = ObserveCommand.render(
+        ScreenObservation(
+            focusedApplication: "Terminal",
+            accessibilityTree: "",
+            screenshotDescription: nil
+        )
+    )
+
+    #expect(output.contains("No Accessibility elements were returned."))
+    #expect(output.contains("System Settings > Privacy & Security > Accessibility"))
+}
+
 @Test func planCommandRendersConfirmationRequired() throws {
     let step = AgentStep(
         id: "send",
