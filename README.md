@@ -36,6 +36,9 @@ This repository currently contains the testable Swift core:
 The native macOS UI, screen observation, audio, and model providers will be added
 after the core contracts are stable.
 
+See [docs/checkpoints.md](docs/checkpoints.md) for the running project log and
+current next steps.
+
 ## Development
 
 ```sh
