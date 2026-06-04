@@ -36,6 +36,20 @@ text transcript -> CodexPlannerProvider -> AgentPlan JSON -> PlanExecutor -> Mac
 The local Codex provider uses the existing Codex CLI session through `codex exec`.
 It does not require an `OPENAI_API_KEY` for this development path.
 
+Jarvis resolves the Codex executable in this order:
+
+1. `JARVIS_CODEX_EXECUTABLE`
+2. `/Applications/Codex.app/Contents/Resources/codex`
+3. `/opt/homebrew/bin/codex`
+4. `/usr/local/bin/codex`
+5. `codex` through `/usr/bin/env`
+
+If Codex is installed somewhere else, run:
+
+```sh
+JARVIS_CODEX_EXECUTABLE=/absolute/path/to/codex swift run jarvis plan "Open Notes"
+```
+
 ## Commands
 
 Run the full package tests:

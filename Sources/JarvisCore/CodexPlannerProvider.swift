@@ -88,6 +88,11 @@ public struct CodexPlannerProvider<Runner: CodexRunning>: PlanningProvider {
 }
 
 public struct CodexExecCommandRunner: CodexRunning {
+    public struct LaunchConfiguration: Equatable, Sendable {
+        public let executablePath: String
+        public let arguments: [String]
+    }
+
     public static let outputSchema = """
     {
       "type": "object",
@@ -169,7 +174,7 @@ public struct CodexExecCommandRunner: CodexRunning {
 
     private let codexExecutable: String
 
-    public init(codexExecutable: String = "/usr/bin/env") {
+    public init(codexExecutable: String = Self.defaultCodexExecutable()) {
         self.codexExecutable = codexExecutable
     }
 
@@ -184,6 +189,42 @@ public struct CodexExecCommandRunner: CodexRunning {
         ]
     }
 
+    public static func defaultCodexExecutable(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        fileManager: FileManager = .default
+    ) -> String {
+        if let explicit = environment["JARVIS_CODEX_EXECUTABLE"], !explicit.isEmpty {
+            return explicit
+        }
+
+        let candidates = [
+            "/Applications/Codex.app/Contents/Resources/codex",
+            "/opt/homebrew/bin/codex",
+            "/usr/local/bin/codex",
+        ]
+
+        if let match = candidates.first(where: { fileManager.isExecutableFile(atPath: $0) }) {
+            return match
+        }
+
+        return "codex"
+    }
+
+    public static func launchConfiguration(
+        codexExecutable: String,
+        outputPath: String,
+        schemaPath: String
+    ) throws -> LaunchConfiguration {
+        let runner = CodexExecCommandRunner(codexExecutable: codexExecutable)
+        let arguments = runner.arguments(outputPath: outputPath, schemaPath: schemaPath)
+
+        if codexExecutable.hasPrefix("/") {
+            return LaunchConfiguration(executablePath: codexExecutable, arguments: arguments)
+        }
+
+        return LaunchConfiguration(executablePath: "/usr/bin/env", arguments: [codexExecutable] + arguments)
+    }
+
     public func run(prompt: String) async throws -> String {
         let fileManager = FileManager.default
         let outputURL = fileManager.temporaryDirectory
@@ -195,14 +236,15 @@ public struct CodexExecCommandRunner: CodexRunning {
 
         try Self.outputSchema.write(to: schemaURL, atomically: true, encoding: .utf8)
 
+        let launch = try Self.launchConfiguration(
+            codexExecutable: codexExecutable,
+            outputPath: outputURL.path,
+            schemaPath: schemaURL.path
+        )
+
         let process = Process()
-        if codexExecutable == "/usr/bin/env" {
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            process.arguments = ["codex"] + arguments(outputPath: outputURL.path, schemaPath: schemaURL.path)
-        } else {
-            process.executableURL = URL(fileURLWithPath: codexExecutable)
-            process.arguments = arguments(outputPath: outputURL.path, schemaPath: schemaURL.path)
-        }
+        process.executableURL = URL(fileURLWithPath: launch.executablePath)
+        process.arguments = launch.arguments
 
         let stdin = Pipe()
         let stderr = Pipe()

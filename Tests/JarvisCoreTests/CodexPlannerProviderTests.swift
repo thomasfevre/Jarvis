@@ -58,6 +58,28 @@ import Testing
     ])
 }
 
+@Test func codexExecRunnerUsesExplicitExecutableWithoutEnvWrapper() throws {
+    let launch = try CodexExecCommandRunner.launchConfiguration(
+        codexExecutable: "/Applications/Codex.app/Contents/Resources/codex",
+        outputPath: "/tmp/plan.json",
+        schemaPath: "/tmp/schema.json"
+    )
+
+    #expect(launch.executablePath == "/Applications/Codex.app/Contents/Resources/codex")
+    #expect(launch.arguments.first == "exec")
+}
+
+@Test func codexExecRunnerFallsBackToEnvWhenExecutableIsNotAbsolute() throws {
+    let launch = try CodexExecCommandRunner.launchConfiguration(
+        codexExecutable: "codex",
+        outputPath: "/tmp/plan.json",
+        schemaPath: "/tmp/schema.json"
+    )
+
+    #expect(launch.executablePath == "/usr/bin/env")
+    #expect(launch.arguments.prefix(2) == ["codex", "exec"])
+}
+
 @Test func codexExecRunnerSchemaDescribesAgentPlan() throws {
     let schema = try JSONSerialization.jsonObject(with: Data(CodexExecCommandRunner.outputSchema.utf8)) as? [String: Any]
 

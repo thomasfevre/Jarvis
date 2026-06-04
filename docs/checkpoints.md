@@ -100,3 +100,17 @@ Build the macOS observation/action layer before UI polish:
 
 Add the Accessibility tree observation provider, then pass real focused-app and
 AX context into the CLI planner request.
+
+## 2026-06-04 - Codex Executable Resolution Fix
+
+### Fixed
+
+- `swift run jarvis plan "Open Notes"` failed for the user with
+  `env: codex: No such file or directory`.
+- `CodexExecCommandRunner` now resolves Codex through `JARVIS_CODEX_EXECUTABLE`,
+  Codex.app, Homebrew paths, then `/usr/bin/env`.
+
+### Verified
+
+- `swift test` passes with 18 tests.
+- `swift run jarvis plan "Open Notes"` returns a valid plan JSON.
