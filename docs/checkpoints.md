@@ -114,3 +114,39 @@ AX context into the CLI planner request.
 
 - `swift test` passes with 18 tests.
 - `swift run jarvis plan "Open Notes"` returns a valid plan JSON.
+
+## 2026-06-05 - Accessibility Observation and Native Input
+
+### Implemented
+
+- Added `swift run jarvis observe`.
+- `jarvis plan` now sends real frontmost-app Accessibility context to Codex
+  instead of placeholder observation text.
+- Added `MacOSAccessibilityObserver` and renderer with bounded depth/children.
+- Extended `MacOSActionRunner` to support:
+  - `openApplication`
+  - `click`
+  - `typeText`
+  - `keyPress`
+- Kept `shell` unsupported.
+- Added tests for observer rendering, CLI observe parsing, click/type/key
+  command generation, and unsupported shell/key behavior.
+
+### Verified
+
+- `swift test` passes with 28 tests.
+- `swift run jarvis observe` returns the focused app and an Accessibility tree.
+- `swift run jarvis plan "Open Notes"` returns a valid plan JSON.
+- `swift run jarvis plan --execute "Open Notes"` returns `Execution completed.`
+
+### Current Limitations
+
+- Accessibility trees can be partial depending on the app and macOS permissions.
+- Click/type/key execution is still low-level and focus/coordinate based.
+- No post-action observation/retry loop yet.
+- No voice input or menu-bar app shell yet.
+
+### Next Recommended Step
+
+Add a post-step observe/verify loop in `PlanExecutor`, then map AX element labels
+to click coordinates before executing click plans.

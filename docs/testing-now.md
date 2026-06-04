@@ -1,7 +1,8 @@
 # Testing Now
 
-Jarvis is currently a Swift package with a planning core, a minimal CLI, and a
-small native macOS action runner. The fastest useful MVP test is:
+Jarvis is currently a Swift package with a planning core, a minimal CLI, a
+macOS Accessibility observer, and a native macOS action runner. The fastest
+useful MVP test is:
 
 ```sh
 swift run jarvis plan "Open Notes and create a quick note"
@@ -14,6 +15,18 @@ print an `AgentPlan` JSON object. This validates the current planning loop:
 text transcript -> CodexPlannerProvider -> AgentPlan JSON
 ```
 
+You can inspect the current Accessibility context with:
+
+```sh
+swift run jarvis observe
+```
+
+That path validates:
+
+```text
+frontmost app -> macOS Accessibility APIs -> ScreenObservation
+```
+
 The fastest execution test is:
 
 ```sh
@@ -23,7 +36,7 @@ swift run jarvis plan --execute "Open Notes"
 That path validates:
 
 ```text
-text transcript -> CodexPlannerProvider -> AgentPlan JSON -> PlanExecutor -> MacOSActionRunner
+real Accessibility observation -> CodexPlannerProvider -> AgentPlan JSON -> PlanExecutor -> MacOSActionRunner
 ```
 
 ## Prerequisites
@@ -120,33 +133,40 @@ Execution completed.
 ```
 
 Notes should open if macOS can resolve the application name. Currently only
-`openApplication` actions are supported by the native runner; click/type/key and
-shell actions fail clearly instead of silently doing nothing.
+`openApplication`, `click`, `typeText`, and `keyPress` are supported by the
+native runner. `shell` actions fail clearly instead of silently doing nothing.
+
+Be careful with click/type/key commands: they operate on the currently focused
+macOS UI. Prefer starting with app-opening commands until the Accessibility
+targeting loop is more mature.
 
 ## What Can Be Tested
 
 - `AgentPlan` JSON decoding and rendering.
 - Planner prompt and output-schema behavior through the local Codex provider.
+- Real frontmost-app observation through macOS Accessibility APIs.
 - Safety classification for planned actions through unit tests.
 - Sequential plan execution over injected test runners through unit tests.
 - CLI parsing for `jarvis plan`, including `--execute`.
-- Native `openApplication` execution through `MacOSActionRunner`.
+- Native app-open/click/type/key execution through `MacOSActionRunner`.
 
 ## Known Limitations
 
 - No native macOS app shell yet.
 - No speech capture, push-to-talk, or realtime voice path yet.
-- No screen capture or Accessibility tree observation is wired into Jarvis yet.
-- The CLI sends placeholder observation text to the planner.
-- Native execution currently supports only app opening.
+- No screen capture or vision fallback is wired into Jarvis yet.
+- Accessibility output can be partial depending on the target app and macOS
+  permissions.
+- Native click/type/key execution is coordinate/focus based and does not yet
+  validate post-action state.
 - The local Codex provider is intended for development and prototyping, not
   production realtime voice.
 - Planner output can vary between runs.
 
 ## Next Steps
 
-1. Add real macOS observation through Accessibility and screen context.
-2. Expand native execution to click, type text, and key press with safety gates.
+1. Improve Accessibility targeting by mapping planned element labels to bounds.
+2. Add post-action observation/retry after each executed step.
 3. Add confirmation UI for risky actions.
 4. Add push-to-talk transcript capture.
 5. Keep the provider boundary so Codex-local, API-backed, and local model

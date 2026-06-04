@@ -4,17 +4,21 @@ import JarvisCore
 @testable import JarvisCLI
 
 @Test func planCommandParsesTranscriptArgument() throws {
-    let command = try PlanCommand.parse(["plan", "Open Notes"])
+    let command = try JarvisCLICommand.parse(["plan", "Open Notes"])
 
-    #expect(command.transcript == "Open Notes")
-    #expect(command.execute == false)
+    #expect(command == .plan(PlanCommand(transcript: "Open Notes", execute: false)))
 }
 
 @Test func planCommandParsesExecuteFlag() throws {
-    let command = try PlanCommand.parse(["plan", "--execute", "Open Notes"])
+    let command = try JarvisCLICommand.parse(["plan", "--execute", "Open Notes"])
 
-    #expect(command.transcript == "Open Notes")
-    #expect(command.execute == true)
+    #expect(command == .plan(PlanCommand(transcript: "Open Notes", execute: true)))
+}
+
+@Test func observeCommandParses() throws {
+    let command = try JarvisCLICommand.parse(["observe"])
+
+    #expect(command == .observe)
 }
 
 @Test func planCommandRendersAgentPlanAsPrettyJSON() throws {
@@ -29,6 +33,19 @@ import JarvisCore
 
     #expect(output.contains("\"summary\" : \"Open Notes\""))
     #expect(output.contains("\"openApplication\""))
+}
+
+@Test func observeCommandRendersScreenObservation() {
+    let output = ObserveCommand.render(
+        ScreenObservation(
+            focusedApplication: "Notes",
+            accessibilityTree: "[button] New note",
+            screenshotDescription: nil
+        )
+    )
+
+    #expect(output.contains("Focused application: Notes"))
+    #expect(output.contains("[button] New note"))
 }
 
 @Test func planCommandRendersConfirmationRequired() throws {

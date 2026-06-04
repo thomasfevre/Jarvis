@@ -1,6 +1,23 @@
 import Foundation
 import JarvisCore
 
+public enum JarvisCLICommand: Equatable, Sendable {
+    case observe
+    case plan(PlanCommand)
+
+    public static func parse(_ arguments: [String]) throws -> JarvisCLICommand {
+        switch arguments.first {
+        case "observe":
+            guard arguments.count == 1 else { throw CLIError.usage }
+            return .observe
+        case "plan":
+            return .plan(try PlanCommand.parse(arguments))
+        default:
+            throw CLIError.usage
+        }
+    }
+}
+
 public struct PlanCommand: Equatable, Sendable {
     public let transcript: String
     public let execute: Bool
@@ -43,6 +60,17 @@ public struct PlanCommand: Equatable, Sendable {
         case let .confirmationRequired(step):
             return "Confirmation required before step \(step.id): \(step.reason)"
         }
+    }
+}
+
+public enum ObserveCommand {
+    public static func render(_ observation: ScreenObservation) -> String {
+        """
+        Focused application: \(observation.focusedApplication ?? "unknown")
+
+        Accessibility tree:
+        \(observation.accessibilityTree)
+        """
     }
 }
 
