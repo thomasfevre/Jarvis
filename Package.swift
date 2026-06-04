@@ -9,13 +9,21 @@ let package = Package(
     ],
     products: [
         .library(name: "JarvisCore", targets: ["JarvisCore"]),
+        .executable(name: "jarvis", targets: ["JarvisCLI"]),
     ],
     targets: [
         .target(name: "JarvisCore"),
+        .executableTarget(
+            name: "JarvisCLI",
+            dependencies: ["JarvisCore"]
+        ),
         .testTarget(
             name: "JarvisCoreTests",
             dependencies: ["JarvisCore"]
         ),
+        .testTarget(
+            name: "JarvisCLITests",
+            dependencies: ["JarvisCLI", "JarvisCore"]
+        ),
     ]
 )
-

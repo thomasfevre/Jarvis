@@ -38,6 +38,7 @@ after the core contracts are stable.
 
 See [docs/checkpoints.md](docs/checkpoints.md) for the running project log and
 current next steps.
+See [docs/testing-now.md](docs/testing-now.md) for the commands that work today.
 
 ## Development
 

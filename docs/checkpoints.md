@@ -70,3 +70,33 @@ Build the macOS observation/action layer before UI polish:
 3. Add tests around action mapping and observation normalization.
 4. Only then create the menu-bar app and push-to-talk loop around the core.
 
+## 2026-06-04 - Minimal CLI Test Path
+
+### Implemented
+
+- Added executable product `jarvis`.
+- Added `swift run jarvis plan "<instruction>"` to call local Codex and print an
+  `AgentPlan`.
+- Added `swift run jarvis plan --execute "Open Notes"` path.
+- Added `MacOSActionRunner` with support for `AgentAction.openApplication`.
+- Added CLI and macOS runner tests.
+- Added [testing-now.md](testing-now.md) with current manual test commands.
+
+### Verified
+
+- `swift test` passes with 16 tests.
+- `swift run jarvis plan "Open Notes"` returns a valid plan JSON.
+- `swift run jarvis plan --execute "Open Notes"` returns `Execution completed.`
+
+### Current Limitations
+
+- Execution only supports opening macOS applications.
+- Click, type text, key press, and shell actions are intentionally unsupported by
+  the native runner for now.
+- CLI still uses placeholder screen/accessibility observations.
+- No voice input or menu-bar app shell yet.
+
+### Next Recommended Step
+
+Add the Accessibility tree observation provider, then pass real focused-app and
+AX context into the CLI planner request.
