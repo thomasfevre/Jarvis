@@ -10,13 +10,18 @@ research harness for evaluating and improving desktop agent reliability.
 - Interaction model: push-to-talk first, experimental always-on later.
 - Agent model: multi-step `Planner + Executor`.
 - Safety: allow routine steps, require confirmation before risky actions.
-- Model strategy: cloud-first for the MVP, provider interfaces so local models can replace cloud services later.
+- Model strategy: Codex-local for development, provider interfaces so API or local models can replace it later.
 
 ## ChatGPT Plus and API Access
 
-ChatGPT Plus is not treated as an application backend. Jarvis needs provider
-interfaces that can be backed by an OpenAI API key, another model provider, or
-local models. The MVP can run core tests without model credentials.
+ChatGPT Plus is not treated as a general OpenAI API backend. For development,
+Jarvis can use the local Codex CLI session through `CodexPlannerProvider`, which
+invokes `codex exec` with a strict output schema. This lets the planner run from
+the local Codex login without storing an `OPENAI_API_KEY` in Jarvis.
+
+This Codex provider is intended for local development and planner prototyping.
+Realtime voice and production distribution should still use dedicated provider
+implementations.
 
 ## Current State
 
@@ -26,6 +31,7 @@ This repository currently contains the testable Swift core:
 - `AgentAction`: supported action contract.
 - `SafetyGate`: confirms risky actions.
 - `PlanExecutor`: sequential multi-step execution over an injected action runner.
+- `CodexPlannerProvider`: development planner backed by local `codex exec`.
 
 The native macOS UI, screen observation, audio, and model providers will be added
 after the core contracts are stable.
@@ -35,4 +41,3 @@ after the core contracts are stable.
 ```sh
 swift test
 ```
-
