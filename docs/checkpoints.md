@@ -236,3 +236,5 @@ can target the containing row/control instead of only the text glyph bounds.
 - Simple visible-text click requests now short-circuit before Codex: `Click X`
   first tries to resolve `X` directly from screenshot OCR and returns a one-step
   click plan when found.
+- Screenshot capture now targets the display containing the frontmost window
+  instead of assuming the first ScreenCaptureKit display is the useful one.

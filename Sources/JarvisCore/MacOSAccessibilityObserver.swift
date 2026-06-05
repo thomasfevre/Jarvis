@@ -147,30 +147,47 @@ public struct EmptyVisibleTextObservationSource: VisibleTextObservationSource {
 }
 
 public struct MacOSVisionTextObservationSource: VisibleTextObservationSource {
-    private let captureScreenshot: @Sendable () async -> CGImage?
+    public struct Screenshot: Sendable {
+        public let image: CGImage
+        public let originX: Int
+        public let originY: Int
 
-    public init(captureScreenshot: @escaping @Sendable () async -> CGImage? = {
-        await Self.captureMainDisplayScreenshot()
+        public init(image: CGImage, originX: Int = 0, originY: Int = 0) {
+            self.image = image
+            self.originX = originX
+            self.originY = originY
+        }
+    }
+
+    private let captureScreenshots: @Sendable () async -> [Screenshot]
+
+    public init(captureScreenshots: @escaping @Sendable () async -> [Screenshot] = {
+        await Self.captureDisplayScreenshots()
     }) {
-        self.captureScreenshot = captureScreenshot
+        self.captureScreenshots = captureScreenshots
     }
 
     public func observeVisibleTexts() async -> [VisibleTextObservation] {
-        guard let screenshot = await captureScreenshot() else { return [] }
+        let screenshots = await captureScreenshots()
+        guard !screenshots.isEmpty else { return [] }
 
+        return screenshots.flatMap(Self.recognizeTexts(in:))
+    }
+
+    public static func recognizeTexts(in screenshot: Screenshot) -> [VisibleTextObservation] {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
 
-        let handler = VNImageRequestHandler(cgImage: screenshot, options: [:])
+        let handler = VNImageRequestHandler(cgImage: screenshot.image, options: [:])
         do {
             try handler.perform([request])
         } catch {
             return []
         }
 
-        let width = CGFloat(screenshot.width)
-        let height = CGFloat(screenshot.height)
+        let width = CGFloat(screenshot.image.width)
+        let height = CGFloat(screenshot.image.height)
 
         return (request.results ?? [])
             .compactMap { observation -> VisibleTextObservation? in
@@ -178,8 +195,8 @@ public struct MacOSVisionTextObservationSource: VisibleTextObservationSource {
                 let bounds = observation.boundingBox
                 return VisibleTextObservation(
                     text: candidate.string,
-                    x: Int((bounds.minX * width).rounded()),
-                    y: Int(((1 - bounds.maxY) * height).rounded()),
+                    x: screenshot.originX + Int((bounds.minX * width).rounded()),
+                    y: screenshot.originY + Int(((1 - bounds.maxY) * height).rounded()),
                     width: Int((bounds.width * width).rounded()),
                     height: Int((bounds.height * height).rounded()),
                     confidence: Double(candidate.confidence)
@@ -192,15 +209,18 @@ public struct MacOSVisionTextObservationSource: VisibleTextObservationSource {
         CGPreflightScreenCaptureAccess()
     }
 
-    public static func captureMainDisplayScreenshot() async -> CGImage? {
-        guard isScreenCaptureTrusted() else { return nil }
+    public static func captureDisplayScreenshots() async -> [Screenshot] {
+        guard isScreenCaptureTrusted() else { return [] }
 
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(
                 false,
                 onScreenWindowsOnly: true
             )
-            guard let display = content.displays.first else { return nil }
+            guard let display = displayContainingFrontmostWindow(from: content.displays)
+                ?? content.displays.first else {
+                return []
+            }
 
             let filter = SCContentFilter(display: display, excludingWindows: [])
             let configuration = SCStreamConfiguration()
@@ -208,13 +228,61 @@ public struct MacOSVisionTextObservationSource: VisibleTextObservationSource {
             configuration.height = display.height
             configuration.showsCursor = true
 
-            return try await SCScreenshotManager.captureImage(
+            let image = try await SCScreenshotManager.captureImage(
                 contentFilter: filter,
                 configuration: configuration
             )
+            let bounds = CGDisplayBounds(display.displayID)
+            return [
+                Screenshot(
+                    image: image,
+                    originX: Int(bounds.origin.x.rounded()),
+                    originY: Int(bounds.origin.y.rounded())
+                ),
+            ]
         } catch {
+            return []
+        }
+    }
+
+    private static func displayContainingFrontmostWindow(from displays: [SCDisplay]) -> SCDisplay? {
+        guard let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              let windowBounds = frontmostWindowBounds(processIdentifier: frontmostPID)
+        else {
             return nil
         }
+
+        let center = CGPoint(x: windowBounds.midX, y: windowBounds.midY)
+        return displays.first { display in
+            CGDisplayBounds(display.displayID).contains(center)
+        }
+    }
+
+    private static func frontmostWindowBounds(processIdentifier: pid_t) -> CGRect? {
+        guard let windowInfo = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] else {
+            return nil
+        }
+
+        return windowInfo
+            .compactMap { info -> CGRect? in
+                guard info[kCGWindowOwnerPID as String] as? pid_t == processIdentifier,
+                      (info[kCGWindowLayer as String] as? Int) == 0,
+                      let boundsDictionary = info[kCGWindowBounds as String] as? [String: Any]
+                else {
+                    return nil
+                }
+
+                var rect = CGRect.zero
+                guard CGRectMakeWithDictionaryRepresentation(boundsDictionary as CFDictionary, &rect),
+                      rect.width > 0,
+                      rect.height > 0
+                else {
+                    return nil
+                }
+
+                return rect
+            }
+            .max { $0.width * $0.height < $1.width * $1.height }
     }
 }
 
