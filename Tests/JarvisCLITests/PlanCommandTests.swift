@@ -18,7 +18,13 @@ import JarvisCore
 @Test func observeCommandParses() throws {
     let command = try JarvisCLICommand.parse(["observe"])
 
-    #expect(command == .observe)
+    #expect(command == .observe(ObserveCLICommand()))
+}
+
+@Test func observeCommandParsesSaveScreenshotOption() throws {
+    let command = try JarvisCLICommand.parse(["observe", "--save-screenshot", "/tmp/jarvis-observe.png"])
+
+    #expect(command == .observe(ObserveCLICommand(saveScreenshotPath: "/tmp/jarvis-observe.png")))
 }
 
 @Test func doctorCommandParses() throws {

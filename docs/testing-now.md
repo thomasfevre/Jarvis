@@ -21,6 +21,12 @@ You can inspect the current Accessibility and visible-text context with:
 swift run jarvis observe
 ```
 
+To save the exact screenshot Jarvis sends to OCR:
+
+```sh
+swift run jarvis observe --save-screenshot /tmp/jarvis-observe.png
+```
+
 That path validates:
 
 ```text
@@ -170,6 +176,8 @@ swift run jarvis plan "Click Obsidian"
 If the visible screen contains the text `Obsidian`, Codex can emit
 `clickElement` and Jarvis resolves it using Apple Vision OCR coordinates. This
 works even when the Accessibility tree only exposes a broad terminal text area.
+If this fails, run `swift run jarvis observe --save-screenshot
+/tmp/jarvis-observe.png` and inspect that image first.
 
 ## What Can Be Tested
 

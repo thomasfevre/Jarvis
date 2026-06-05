@@ -1,5 +1,7 @@
 import Foundation
+import ImageIO
 import JarvisCore
+import UniformTypeIdentifiers
 
 struct JarvisCommand {
     static func run() async {
@@ -9,8 +11,8 @@ struct JarvisCommand {
             switch command {
             case .doctor:
                 print(DoctorCommand.render(await Self.doctorReport()))
-            case .observe:
-                print(ObserveCommand.render(await Self.currentObservation()))
+            case let .observe(command):
+                print(try await Self.renderObservation(command))
             case let .plan(command):
                 let observation = await Self.currentObservation()
                 let resolvedPlan: AgentPlan
@@ -44,7 +46,7 @@ struct JarvisCommand {
                 }
             }
         } catch CLIError.usage {
-            fputs("Usage: jarvis doctor | jarvis observe | jarvis plan [--execute] <instruction>\n", stderr)
+            fputs("Usage: jarvis doctor | jarvis observe [--save-screenshot <path>] | jarvis plan [--execute] <instruction>\n", stderr)
             Foundation.exit(64)
         } catch {
             fputs("jarvis: \(error)\n", stderr)
@@ -54,6 +56,44 @@ struct JarvisCommand {
 
     static func currentObservation() async -> ScreenObservation {
         await MacOSAccessibilityObserver(visibleTextSource: MacOSVisionTextObservationSource()).observe()
+    }
+
+    static func renderObservation(_ command: ObserveCLICommand) async throws -> String {
+        guard let screenshotPath = command.saveScreenshotPath else {
+            return ObserveCommand.render(await currentObservation())
+        }
+
+        let screenshots = await MacOSVisionTextObservationSource.captureDisplayScreenshots()
+        guard let firstScreenshot = screenshots.first else {
+            return ObserveCommand.render(await currentObservation())
+        }
+
+        try savePNG(firstScreenshot.image, to: screenshotPath)
+        let observation = await MacOSAccessibilityObserver(
+            visibleTextSource: MacOSVisionTextObservationSource(captureScreenshots: { screenshots })
+        ).observe()
+
+        return """
+        Saved screenshot: \(screenshotPath)
+        \(ObserveCommand.render(observation))
+        """
+    }
+
+    static func savePNG(_ image: CGImage, to path: String) throws {
+        let url = URL(fileURLWithPath: path)
+        guard let destination = CGImageDestinationCreateWithURL(
+            url as CFURL,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ) else {
+            throw CLIError.cannotWriteScreenshot(path)
+        }
+
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else {
+            throw CLIError.cannotWriteScreenshot(path)
+        }
     }
 
     static func doctorReport() async -> DoctorReport {

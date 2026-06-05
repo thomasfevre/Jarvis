@@ -3,7 +3,7 @@ import JarvisCore
 
 public enum JarvisCLICommand: Equatable, Sendable {
     case doctor
-    case observe
+    case observe(ObserveCLICommand)
     case plan(PlanCommand)
 
     public static func parse(_ arguments: [String]) throws -> JarvisCLICommand {
@@ -12,13 +12,37 @@ public enum JarvisCLICommand: Equatable, Sendable {
             guard arguments.count == 1 else { throw CLIError.usage }
             return .doctor
         case "observe":
-            guard arguments.count == 1 else { throw CLIError.usage }
-            return .observe
+            return .observe(try ObserveCLICommand.parse(arguments))
         case "plan":
             return .plan(try PlanCommand.parse(arguments))
         default:
             throw CLIError.usage
         }
+    }
+}
+
+public struct ObserveCLICommand: Equatable, Sendable {
+    public let saveScreenshotPath: String?
+
+    public init(saveScreenshotPath: String? = nil) {
+        self.saveScreenshotPath = saveScreenshotPath
+    }
+
+    public static func parse(_ arguments: [String]) throws -> ObserveCLICommand {
+        guard arguments.first == "observe" else {
+            throw CLIError.usage
+        }
+
+        let remaining = Array(arguments.dropFirst())
+        guard !remaining.isEmpty else {
+            return ObserveCLICommand()
+        }
+
+        guard remaining.count == 2, remaining[0] == "--save-screenshot", !remaining[1].isEmpty else {
+            throw CLIError.usage
+        }
+
+        return ObserveCLICommand(saveScreenshotPath: remaining[1])
     }
 }
 
@@ -330,4 +354,5 @@ public enum ObserveCommand {
 
 public enum CLIError: Error, Equatable {
     case usage
+    case cannotWriteScreenshot(String)
 }

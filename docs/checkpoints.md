@@ -238,3 +238,5 @@ can target the containing row/control instead of only the text glyph bounds.
   click plan when found.
 - Screenshot capture now targets the display containing the frontmost window
   instead of assuming the first ScreenCaptureKit display is the useful one.
+- Added `swift run jarvis observe --save-screenshot <path>` to save the exact
+  screenshot used for OCR debugging.
