@@ -229,11 +229,23 @@ public struct PlanCommand: Equatable, Sendable {
         guard !normalizedLabel.isEmpty, !normalizedText.isEmpty else { return 0 }
 
         if normalizedLabel == normalizedText { return 1.0 }
-        if normalizedLabel.contains(normalizedText) || normalizedText.contains(normalizedLabel) { return 0.9 }
 
         let labelTokens = Set(normalizedLabel.split(separator: " ").map(String.init))
         let textTokens = Set(normalizedText.split(separator: " ").map(String.init))
         guard !labelTokens.isEmpty, !textTokens.isEmpty else { return 0 }
+
+        if labelTokens.isSubset(of: textTokens) {
+            let extraTokens = max(0, textTokens.count - labelTokens.count)
+            return max(0.45, 0.95 - (Double(extraTokens) * 0.08))
+        }
+
+        if normalizedLabel.contains(normalizedText) {
+            return 0.85
+        }
+        if normalizedText.contains(normalizedLabel) {
+            let ratio = Double(normalizedLabel.count) / Double(max(normalizedText.count, 1))
+            return 0.55 + min(0.25, ratio)
+        }
 
         let overlap = labelTokens.intersection(textTokens).count
         guard overlap > 0 else { return 0 }

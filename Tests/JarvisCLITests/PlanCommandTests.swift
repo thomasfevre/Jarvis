@@ -206,3 +206,36 @@ import JarvisCore
     #expect(plan.summary == "Click Obsidian")
     #expect(plan.steps[0].action == .click(x: 44, y: 234, label: "Obsidian"))
 }
+
+@Test func planCommandPrefersShortVisibleTextMatchOverLongBodyText() throws {
+    let observation = ScreenObservation(
+        focusedApplication: "Codex",
+        accessibilityTree: "AXWindow \"Codex\"",
+        screenshotDescription: nil,
+        visibleTexts: [
+            VisibleTextObservation(
+                text: "Obsidian Vault",
+                x: 35,
+                y: 331,
+                width: 103,
+                height: 15,
+                confidence: 0.5
+            ),
+            VisibleTextObservation(
+                text: "Maintenant l'OCR voit Obsidian Vault). Dernier point important: screencapture sort des pixels Retina 2x,",
+                x: 487,
+                y: 557,
+                width: 864,
+                height: 15,
+                confidence: 1.0
+            ),
+        ]
+    )
+
+    let plan = try #require(PlanCommand.directVisibleClickPlan(
+        transcript: "Click Obsidian",
+        observation: observation
+    ))
+
+    #expect(plan.steps[0].action == .click(x: 86, y: 338, label: "Obsidian Vault"))
+}

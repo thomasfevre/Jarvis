@@ -1,7 +1,6 @@
+import AppKit
 import Foundation
-import ImageIO
 import JarvisCore
-import UniformTypeIdentifiers
 
 struct JarvisCommand {
     static func run() async {
@@ -68,7 +67,7 @@ struct JarvisCommand {
             return ObserveCommand.render(await currentObservation())
         }
 
-        try savePNG(firstScreenshot.image, to: screenshotPath)
+        try saveScreenshot(firstScreenshot, to: screenshotPath)
         let observation = await MacOSAccessibilityObserver(
             visibleTextSource: MacOSVisionTextObservationSource(captureScreenshots: { screenshots })
         ).observe()
@@ -79,21 +78,27 @@ struct JarvisCommand {
         """
     }
 
+    static func saveScreenshot(_ screenshot: MacOSVisionTextObservationSource.Screenshot, to path: String) throws {
+        if let pngData = screenshot.pngData {
+            let url = URL(fileURLWithPath: path)
+            try? FileManager.default.removeItem(at: url)
+            try pngData.write(to: url, options: .atomic)
+            return
+        }
+
+        try savePNG(screenshot.image, to: path)
+    }
+
     static func savePNG(_ image: CGImage, to path: String) throws {
         let url = URL(fileURLWithPath: path)
-        guard let destination = CGImageDestinationCreateWithURL(
-            url as CFURL,
-            UTType.png.identifier as CFString,
-            1,
-            nil
-        ) else {
+        try? FileManager.default.removeItem(at: url)
+
+        let bitmap = NSBitmapImageRep(cgImage: image)
+        guard let data = bitmap.representation(using: .png, properties: [:]) else {
             throw CLIError.cannotWriteScreenshot(path)
         }
 
-        CGImageDestinationAddImage(destination, image, nil)
-        guard CGImageDestinationFinalize(destination) else {
-            throw CLIError.cannotWriteScreenshot(path)
-        }
+        try data.write(to: url, options: .atomic)
     }
 
     static func doctorReport() async -> DoctorReport {

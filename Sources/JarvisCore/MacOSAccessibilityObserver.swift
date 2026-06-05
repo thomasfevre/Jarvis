@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import Foundation
+import ImageIO
 import ScreenCaptureKit
 import Vision
 
@@ -151,11 +152,21 @@ public struct MacOSVisionTextObservationSource: VisibleTextObservationSource {
         public let image: CGImage
         public let originX: Int
         public let originY: Int
+        public let coordinateScale: Double
+        public let pngData: Data?
 
-        public init(image: CGImage, originX: Int = 0, originY: Int = 0) {
+        public init(
+            image: CGImage,
+            originX: Int = 0,
+            originY: Int = 0,
+            coordinateScale: Double = 1,
+            pngData: Data? = nil
+        ) {
             self.image = image
             self.originX = originX
             self.originY = originY
+            self.coordinateScale = max(coordinateScale, 1)
+            self.pngData = pngData
         }
     }
 
@@ -179,7 +190,7 @@ public struct MacOSVisionTextObservationSource: VisibleTextObservationSource {
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
 
-        let handler = VNImageRequestHandler(cgImage: screenshot.image, options: [:])
+        let handler = VNImageRequestHandler(cgImage: screenshot.image, orientation: .up, options: [:])
         do {
             try handler.perform([request])
         } catch {
@@ -193,12 +204,16 @@ public struct MacOSVisionTextObservationSource: VisibleTextObservationSource {
             .compactMap { observation -> VisibleTextObservation? in
                 guard let candidate = observation.topCandidates(1).first else { return nil }
                 let bounds = observation.boundingBox
+                let pixelX = bounds.minX * width
+                let pixelY = (1 - bounds.maxY) * height
+                let pixelWidth = bounds.width * width
+                let pixelHeight = bounds.height * height
                 return VisibleTextObservation(
                     text: candidate.string,
-                    x: screenshot.originX + Int((bounds.minX * width).rounded()),
-                    y: screenshot.originY + Int(((1 - bounds.maxY) * height).rounded()),
-                    width: Int((bounds.width * width).rounded()),
-                    height: Int((bounds.height * height).rounded()),
+                    x: screenshot.originX + Int((pixelX / screenshot.coordinateScale).rounded()),
+                    y: screenshot.originY + Int((pixelY / screenshot.coordinateScale).rounded()),
+                    width: Int((pixelWidth / screenshot.coordinateScale).rounded()),
+                    height: Int((pixelHeight / screenshot.coordinateScale).rounded()),
                     confidence: Double(candidate.confidence)
                 )
             }
@@ -212,6 +227,58 @@ public struct MacOSVisionTextObservationSource: VisibleTextObservationSource {
     public static func captureDisplayScreenshots() async -> [Screenshot] {
         guard isScreenCaptureTrusted() else { return [] }
 
+        if let screenshot = captureUsingScreencaptureCommand() {
+            return [screenshot]
+        }
+
+        return await captureUsingScreenCaptureKit()
+    }
+
+    public static func captureUsingScreencaptureCommand() -> Screenshot? {
+        let fileManager = FileManager.default
+        let url = fileManager.temporaryDirectory
+            .appendingPathComponent("jarvis-screencapture-\(UUID().uuidString).png")
+        defer { try? fileManager.removeItem(at: url) }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        process.arguments = ["-x", url.path]
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return nil
+        }
+
+        guard process.terminationStatus == 0,
+              let data = try? Data(contentsOf: url),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(
+                source,
+                0,
+                [kCGImageSourceShouldCacheImmediately: true] as CFDictionary
+              )
+        else {
+            return nil
+        }
+
+        return Screenshot(
+            image: image,
+            coordinateScale: coordinateScale(for: image),
+            pngData: data
+        )
+    }
+
+    private static func coordinateScale(for image: CGImage) -> Double {
+        let mainDisplayWidth = CGDisplayBounds(CGMainDisplayID()).width
+        guard mainDisplayWidth > 0 else { return 1 }
+
+        let scale = Double(image.width) / Double(mainDisplayWidth)
+        return scale.isFinite && scale > 0 ? scale : 1
+    }
+
+    private static func captureUsingScreenCaptureKit() async -> [Screenshot] {
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(
                 false,
