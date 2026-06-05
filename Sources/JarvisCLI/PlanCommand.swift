@@ -66,6 +66,26 @@ public struct PlanCommand: Equatable, Sendable {
         }
     }
 
+    public static func directVisibleClickPlan(transcript: String, observation: ScreenObservation) -> AgentPlan? {
+        guard transcriptIsClickRequest(transcript),
+              let target = clickTarget(from: transcript),
+              let click = clickAction(for: target, in: observation.visibleTexts)
+        else {
+            return nil
+        }
+
+        return AgentPlan(
+            summary: "Click \(target)",
+            steps: [
+                AgentStep(
+                    id: "click-\(stableIdentifier(from: target))",
+                    reason: "The requested target is visible in screenshot OCR.",
+                    action: click
+                ),
+            ]
+        )
+    }
+
     public static func resolveElementActions(
         in plan: AgentPlan,
         using observation: ScreenObservation,
@@ -102,6 +122,31 @@ public struct PlanCommand: Equatable, Sendable {
         let normalized = normalizedSearchString(transcript)
         let clickTokens = ["click", "clic", "clique", "cliquer", "tap", "press", "select", "sélectionne", "selectionne"]
         return clickTokens.contains { normalized.split(separator: " ").contains(Substring($0)) }
+    }
+
+    private static func clickTarget(from transcript: String) -> String? {
+        let words = transcript
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+        guard !words.isEmpty else { return nil }
+
+        let clickTokens = Set(["click", "clic", "clique", "cliquer", "tap", "press", "select", "sélectionne", "selectionne"])
+        guard let clickIndex = words.firstIndex(where: { clickTokens.contains(normalizedSearchString($0)) }) else {
+            return nil
+        }
+
+        let filler = Set(["the", "a", "an", "on", "sur", "le", "la", "les", "un", "une", "button", "bouton"])
+        let targetWords = words
+            .dropFirst(clickIndex + 1)
+            .filter { !filler.contains(normalizedSearchString($0)) }
+
+        let target = targetWords.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        return target.isEmpty ? nil : target
+    }
+
+    private static func stableIdentifier(from value: String) -> String {
+        let normalized = normalizedSearchString(value)
+        return normalized.isEmpty ? "target" : normalized.replacingOccurrences(of: " ", with: "-")
     }
 
     private static func clickAction(for label: String, in accessibilityTree: String) -> AgentAction? {

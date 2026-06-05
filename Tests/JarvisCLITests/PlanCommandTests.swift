@@ -181,3 +181,22 @@ import JarvisCore
 
     #expect(resolved.steps[0].action == .click(x: 76, y: 338, label: "• Obsidian Vault"))
 }
+
+@Test func planCommandBuildsDirectVisibleClickPlanBeforePlanner() throws {
+    let observation = ScreenObservation(
+        focusedApplication: "cmux",
+        accessibilityTree: "AXTextArea bounds=(180,91,1548,940)",
+        screenshotDescription: nil,
+        visibleTexts: [
+            VisibleTextObservation(text: "Obsidian", x: 15, y: 228, width: 58, height: 13, confidence: 1.0),
+        ]
+    )
+
+    let plan = try #require(PlanCommand.directVisibleClickPlan(
+        transcript: "Click Obsidian",
+        observation: observation
+    ))
+
+    #expect(plan.summary == "Click Obsidian")
+    #expect(plan.steps[0].action == .click(x: 44, y: 234, label: "Obsidian"))
+}

@@ -12,19 +12,28 @@ struct JarvisCommand {
             case .observe:
                 print(ObserveCommand.render(await Self.currentObservation()))
             case let .plan(command):
-                let provider = CodexPlannerProvider(runner: CodexExecCommandRunner())
                 let observation = await Self.currentObservation()
-                let plan = try await provider.plan(
-                    for: PlanningRequest(
-                        transcript: command.transcript,
-                        observation: observation
+                let resolvedPlan: AgentPlan
+
+                if let directPlan = PlanCommand.directVisibleClickPlan(
+                    transcript: command.transcript,
+                    observation: observation
+                ) {
+                    resolvedPlan = directPlan
+                } else {
+                    let provider = CodexPlannerProvider(runner: CodexExecCommandRunner())
+                    let plan = try await provider.plan(
+                        for: PlanningRequest(
+                            transcript: command.transcript,
+                            observation: observation
+                        )
                     )
-                )
-                let resolvedPlan = PlanCommand.resolveElementActions(
-                    in: plan,
-                    using: observation,
-                    transcript: command.transcript
-                )
+                    resolvedPlan = PlanCommand.resolveElementActions(
+                        in: plan,
+                        using: observation,
+                        transcript: command.transcript
+                    )
+                }
 
                 print(try PlanCommand.render(resolvedPlan))
 

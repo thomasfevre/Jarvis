@@ -233,3 +233,6 @@ can target the containing row/control instead of only the text glyph bounds.
   when matching text is present.
 - Planner instructions now explicitly say not to use `openApplication` for click
   requests when matching visible screenshot text is present.
+- Simple visible-text click requests now short-circuit before Codex: `Click X`
+  first tries to resolve `X` directly from screenshot OCR and returns a one-step
+  click plan when found.
