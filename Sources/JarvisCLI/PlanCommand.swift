@@ -2,11 +2,15 @@ import Foundation
 import JarvisCore
 
 public enum JarvisCLICommand: Equatable, Sendable {
+    case doctor
     case observe
     case plan(PlanCommand)
 
     public static func parse(_ arguments: [String]) throws -> JarvisCLICommand {
         switch arguments.first {
+        case "doctor":
+            guard arguments.count == 1 else { throw CLIError.usage }
+            return .doctor
         case "observe":
             guard arguments.count == 1 else { throw CLIError.usage }
             return .observe
@@ -60,6 +64,95 @@ public struct PlanCommand: Equatable, Sendable {
         case let .confirmationRequired(step):
             return "Confirmation required before step \(step.id): \(step.reason)"
         }
+    }
+
+    public static func resolveElementActions(in plan: AgentPlan, using observation: ScreenObservation) -> AgentPlan {
+        let steps = plan.steps.map { step in
+            guard case let .clickElement(label) = step.action,
+                  let click = clickAction(for: label, in: observation.accessibilityTree)
+            else {
+                return step
+            }
+
+            return AgentStep(id: step.id, reason: step.reason, action: click)
+        }
+
+        return AgentPlan(summary: plan.summary, steps: steps)
+    }
+
+    private static func clickAction(for label: String, in accessibilityTree: String) -> AgentAction? {
+        let normalizedLabel = label.lowercased()
+
+        for line in accessibilityTree.split(separator: "\n").map(String.init) {
+            guard line.lowercased().contains(normalizedLabel),
+                  let bounds = parseBounds(from: line)
+            else {
+                continue
+            }
+
+            return .click(
+                x: bounds.x + bounds.width / 2,
+                y: bounds.y + bounds.height / 2,
+                label: label
+            )
+        }
+
+        return nil
+    }
+
+    private static func parseBounds(from line: String) -> (x: Int, y: Int, width: Int, height: Int)? {
+        guard let range = line.range(of: #"bounds=\(([-0-9]+),([-0-9]+),([-0-9]+),([-0-9]+)\)"#, options: .regularExpression) else {
+            return nil
+        }
+
+        let match = String(line[range])
+        let values = match
+            .replacingOccurrences(of: "bounds=(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+            .split(separator: ",")
+            .compactMap { Int($0) }
+
+        guard values.count == 4 else { return nil }
+        return (values[0], values[1], values[2], values[3])
+    }
+}
+
+public struct DoctorReport: Equatable, Sendable {
+    public let codexExecutable: String
+    public let accessibilityTrusted: Bool
+    public let focusedApplication: String?
+    public let accessibilityTreeIsEmpty: Bool
+
+    public init(
+        codexExecutable: String,
+        accessibilityTrusted: Bool,
+        focusedApplication: String?,
+        accessibilityTreeIsEmpty: Bool
+    ) {
+        self.codexExecutable = codexExecutable
+        self.accessibilityTrusted = accessibilityTrusted
+        self.focusedApplication = focusedApplication
+        self.accessibilityTreeIsEmpty = accessibilityTreeIsEmpty
+    }
+}
+
+public enum DoctorCommand {
+    public static func render(_ report: DoctorReport) -> String {
+        var lines = [
+            "Codex executable: \(report.codexExecutable)",
+            "Accessibility trusted: \(report.accessibilityTrusted ? "yes" : "no")",
+            "Focused application: \(report.focusedApplication ?? "unknown")",
+            "Accessibility tree empty: \(report.accessibilityTreeIsEmpty ? "yes" : "no")",
+        ]
+
+        if !report.accessibilityTrusted || report.accessibilityTreeIsEmpty {
+            lines.append("")
+            lines.append("If Accessibility is not working, grant permission to the terminal app running Jarvis:")
+            lines.append("System Settings > Privacy & Security > Accessibility")
+            lines.append("Then restart the terminal/cmux process and rerun `swift run jarvis doctor`.")
+        }
+
+        return lines.joined(separator: "\n")
     }
 }
 

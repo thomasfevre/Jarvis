@@ -92,7 +92,7 @@ import Testing
     let stepProperties = try #require(items["properties"] as? [String: Any])
     let action = try #require(stepProperties["action"] as? [String: Any])
     let actionVariants = try #require(action["anyOf"] as? [[String: Any]])
-    #expect(actionVariants.count == 5)
+    #expect(actionVariants.count == 6)
     #expect(actionVariants.allSatisfy { $0["additionalProperties"] as? Bool == false })
 }
 

@@ -28,3 +28,22 @@ import Testing
     #expect(plan.steps[0].action == .openApplication(name: "Mail"))
     #expect(plan.steps[1].action == .click(x: 42, y: 84, label: "Compose"))
 }
+
+@Test func decodesClickElementPlannerAction() throws {
+    let data = Data("""
+    {
+      "summary": "Click search",
+      "steps": [
+        {
+          "id": "click-search",
+          "reason": "Use the visible search field",
+          "action": { "type": "clickElement", "label": "Search" }
+        }
+      ]
+    }
+    """.utf8)
+
+    let plan = try JSONDecoder().decode(AgentPlan.self, from: data)
+
+    #expect(plan.steps[0].action == .clickElement(label: "Search"))
+}

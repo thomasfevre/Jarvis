@@ -47,11 +47,13 @@ public struct CodexPlannerProvider<Runner: CodexRunning>: PlanningProvider {
 
         Supported action objects:
         - { "type": "click", "x": 100, "y": 200, "label": "Button label" }
+        - { "type": "clickElement", "label": "Button or field label" }
         - { "type": "typeText", "text": "text to type" }
         - { "type": "keyPress", "key": "return", "modifiers": ["cmd"], "label": "Submit" }
         - { "type": "openApplication", "name": "Application Name" }
         - { "type": "shell", "command": "command" }
 
+        Prefer clickElement over raw click when an Accessibility element label is visible.
         Prefer macOS UI actions over shell commands. Use shell only when the user explicitly asks
         for a command-line action. Jarvis will require confirmation before risky actions.
 
@@ -120,6 +122,15 @@ public struct CodexExecCommandRunner: CodexRunning {
                       "x": { "type": "integer" },
                       "y": { "type": "integer" },
                       "label": { "type": ["string", "null"] }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type", "label"],
+                    "properties": {
+                      "type": { "type": "string", "const": "clickElement" },
+                      "label": { "type": "string" }
                     }
                   },
                   {

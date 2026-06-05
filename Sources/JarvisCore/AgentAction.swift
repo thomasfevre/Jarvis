@@ -2,6 +2,7 @@ import Foundation
 
 public enum AgentAction: Equatable, Sendable {
     case click(x: Int, y: Int, label: String?)
+    case clickElement(label: String)
     case typeText(String)
     case keyPress(key: String, modifiers: [String], label: String?)
     case openApplication(name: String)
@@ -23,6 +24,7 @@ extension AgentAction: Codable {
 
     private enum ActionType: String, Codable {
         case click
+        case clickElement
         case typeText
         case keyPress
         case openApplication
@@ -40,6 +42,8 @@ extension AgentAction: Codable {
                 y: try container.decode(Int.self, forKey: .y),
                 label: try container.decodeIfPresent(String.self, forKey: .label)
             )
+        case .clickElement:
+            self = .clickElement(label: try container.decode(String.self, forKey: .label))
         case .typeText:
             self = .typeText(try container.decode(String.self, forKey: .text))
         case .keyPress:
@@ -64,6 +68,9 @@ extension AgentAction: Codable {
             try container.encode(x, forKey: .x)
             try container.encode(y, forKey: .y)
             try container.encodeIfPresent(label, forKey: .label)
+        case let .clickElement(label):
+            try container.encode(ActionType.clickElement, forKey: .type)
+            try container.encode(label, forKey: .label)
         case let .typeText(text):
             try container.encode(ActionType.typeText, forKey: .type)
             try container.encode(text, forKey: .text)
@@ -81,4 +88,3 @@ extension AgentAction: Codable {
         }
     }
 }
-

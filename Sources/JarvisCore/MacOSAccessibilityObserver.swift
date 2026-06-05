@@ -141,10 +141,14 @@ private extension AccessibilityElementSnapshot {
 public struct MacOSAccessibilitySource: AccessibilityObservationSource {
     public init() {}
 
+    public static func isProcessTrusted() -> Bool {
+        AXIsProcessTrusted()
+    }
+
     public func focusedApplicationSnapshot(maxDepth: Int, maxChildren: Int) -> AccessibilityApplicationSnapshot? {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
 
-        guard AXIsProcessTrusted() else {
+        guard Self.isProcessTrusted() else {
             return AccessibilityApplicationSnapshot(
                 applicationName: app.localizedName,
                 rootElement: AccessibilityElementSnapshot(

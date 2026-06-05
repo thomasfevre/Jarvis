@@ -7,27 +7,31 @@ struct JarvisCommand {
             let command = try JarvisCLICommand.parse(Array(CommandLine.arguments.dropFirst()))
 
             switch command {
+            case .doctor:
+                print(DoctorCommand.render(Self.doctorReport()))
             case .observe:
                 print(ObserveCommand.render(Self.currentObservation()))
             case let .plan(command):
                 let provider = CodexPlannerProvider(runner: CodexExecCommandRunner())
+                let observation = Self.currentObservation()
                 let plan = try await provider.plan(
                     for: PlanningRequest(
                         transcript: command.transcript,
-                        observation: Self.currentObservation()
+                        observation: observation
                     )
                 )
+                let resolvedPlan = PlanCommand.resolveElementActions(in: plan, using: observation)
 
-                print(try PlanCommand.render(plan))
+                print(try PlanCommand.render(resolvedPlan))
 
                 if command.execute {
                     let executor = PlanExecutor(safetyGate: SafetyGate(), actionRunner: MacOSActionRunner())
-                    let result = try await executor.run(plan)
+                    let result = try await executor.run(resolvedPlan)
                     print(PlanCommand.renderExecutionResult(result))
                 }
             }
         } catch CLIError.usage {
-            fputs("Usage: jarvis observe | jarvis plan [--execute] <instruction>\n", stderr)
+            fputs("Usage: jarvis doctor | jarvis observe | jarvis plan [--execute] <instruction>\n", stderr)
             Foundation.exit(64)
         } catch {
             fputs("jarvis: \(error)\n", stderr)
@@ -37,6 +41,16 @@ struct JarvisCommand {
 
     static func currentObservation() -> ScreenObservation {
         MacOSAccessibilityObserver().observe()
+    }
+
+    static func doctorReport() -> DoctorReport {
+        let observation = currentObservation()
+        return DoctorReport(
+            codexExecutable: CodexExecCommandRunner.defaultCodexExecutable(),
+            accessibilityTrusted: MacOSAccessibilitySource.isProcessTrusted(),
+            focusedApplication: observation.focusedApplication,
+            accessibilityTreeIsEmpty: observation.accessibilityTree.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        )
     }
 }
 

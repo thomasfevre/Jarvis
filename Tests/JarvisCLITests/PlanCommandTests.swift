@@ -21,6 +21,12 @@ import JarvisCore
     #expect(command == .observe)
 }
 
+@Test func doctorCommandParses() throws {
+    let command = try JarvisCLICommand.parse(["doctor"])
+
+    #expect(command == .doctor)
+}
+
 @Test func planCommandRendersAgentPlanAsPrettyJSON() throws {
     let plan = AgentPlan(
         summary: "Open Notes",
@@ -61,6 +67,22 @@ import JarvisCore
     #expect(output.contains("System Settings > Privacy & Security > Accessibility"))
 }
 
+@Test func doctorCommandRendersDiagnostics() {
+    let report = DoctorReport(
+        codexExecutable: "/Applications/Codex.app/Contents/Resources/codex",
+        accessibilityTrusted: false,
+        focusedApplication: "cmux",
+        accessibilityTreeIsEmpty: true
+    )
+
+    let output = DoctorCommand.render(report)
+
+    #expect(output.contains("Codex executable: /Applications/Codex.app/Contents/Resources/codex"))
+    #expect(output.contains("Accessibility trusted: no"))
+    #expect(output.contains("Focused application: cmux"))
+    #expect(output.contains("System Settings > Privacy & Security > Accessibility"))
+}
+
 @Test func planCommandRendersConfirmationRequired() throws {
     let step = AgentStep(
         id: "send",
@@ -71,4 +93,36 @@ import JarvisCore
     let output = PlanCommand.renderExecutionResult(.confirmationRequired(step: step))
 
     #expect(output.contains("Confirmation required before step send"))
+}
+
+@Test func planCommandResolvesClickElementFromAccessibilityBounds() throws {
+    let plan = AgentPlan(
+        summary: "Click search",
+        steps: [
+            AgentStep(id: "click-search", reason: "Use search", action: .clickElement(label: "Search")),
+        ]
+    )
+    let observation = ScreenObservation(
+        focusedApplication: "Browser",
+        accessibilityTree: #"AXTextField "Search" bounds=(10,20,200,40)"#,
+        screenshotDescription: nil
+    )
+
+    let resolved = PlanCommand.resolveElementActions(in: plan, using: observation)
+
+    #expect(resolved.steps[0].action == .click(x: 110, y: 40, label: "Search"))
+}
+
+@Test func planCommandLeavesUnresolvedClickElementInPlace() throws {
+    let plan = AgentPlan(
+        summary: "Click search",
+        steps: [
+            AgentStep(id: "click-search", reason: "Use search", action: .clickElement(label: "Search")),
+        ]
+    )
+    let observation = ScreenObservation(focusedApplication: "Browser", accessibilityTree: "AXButton \"Other\"", screenshotDescription: nil)
+
+    let resolved = PlanCommand.resolveElementActions(in: plan, using: observation)
+
+    #expect(resolved.steps[0].action == .clickElement(label: "Search"))
 }

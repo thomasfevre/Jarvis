@@ -21,6 +21,8 @@ public struct SafetyGate: Sendable {
         switch action {
         case let .click(_, _, label):
             return containsRiskyLabel(label)
+        case let .clickElement(label):
+            return containsRiskyLabel(label)
         case let .keyPress(key, _, label):
             return key.lowercased() == "return" && containsRiskyLabel(label)
         case .shell:
@@ -36,4 +38,3 @@ public struct SafetyGate: Sendable {
         return riskyLabels.contains { normalized.contains($0) }
     }
 }
-

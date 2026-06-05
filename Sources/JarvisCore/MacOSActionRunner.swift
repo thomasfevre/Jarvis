@@ -77,6 +77,8 @@ public struct MacOSActionRunner: ActionRunning {
         case let .click(x, y, _):
             try await performInputCommand(.mouseDown(x: x, y: y))
             try await performInputCommand(.mouseUp(x: x, y: y))
+        case .clickElement:
+            throw Error.unsupportedAction(action)
         case let .typeText(text):
             try await performInputCommand(.setPasteboardString(text))
             try await performInputCommand(.keyDown(keyCode: Self.keyCode(for: "v")!, flags: .command))

@@ -140,11 +140,31 @@ Be careful with click/type/key commands: they operate on the currently focused
 macOS UI. Prefer starting with app-opening commands until the Accessibility
 targeting loop is more mature.
 
+Run environment diagnostics:
+
+```sh
+swift run jarvis doctor
+```
+
+Expected output includes the resolved Codex executable, whether Accessibility is
+trusted, the focused app, and whether the Accessibility tree is empty.
+
+Test Accessibility-based click planning:
+
+```sh
+swift run jarvis plan "Click the focused text area"
+```
+
+If the focused app exposes bounds in its Accessibility tree, Codex can emit
+`clickElement` and Jarvis resolves it into a coordinate `click`.
+
 ## What Can Be Tested
 
 - `AgentPlan` JSON decoding and rendering.
 - Planner prompt and output-schema behavior through the local Codex provider.
 - Real frontmost-app observation through macOS Accessibility APIs.
+- Environment diagnostics through `jarvis doctor`.
+- Accessibility label targeting through `clickElement` resolution.
 - Safety classification for planned actions through unit tests.
 - Sequential plan execution over injected test runners through unit tests.
 - CLI parsing for `jarvis plan`, including `--execute`.
@@ -157,16 +177,17 @@ targeting loop is more mature.
 - No screen capture or vision fallback is wired into Jarvis yet.
 - Accessibility output can be partial depending on the target app and macOS
   permissions.
-- Native click/type/key execution is coordinate/focus based and does not yet
-  validate post-action state.
+- Native click/type/key execution is coordinate/focus based. `clickElement`
+  improves planning by resolving labels from Accessibility bounds, but does not
+  yet validate post-action state.
 - The local Codex provider is intended for development and prototyping, not
   production realtime voice.
 - Planner output can vary between runs.
 
 ## Next Steps
 
-1. Improve Accessibility targeting by mapping planned element labels to bounds.
-2. Add post-action observation/retry after each executed step.
+1. Add post-action observation/retry after each executed step.
+2. Improve element matching with roles and exact label/title/value fields.
 3. Add confirmation UI for risky actions.
 4. Add push-to-talk transcript capture.
 5. Keep the provider boundary so Codex-local, API-backed, and local model

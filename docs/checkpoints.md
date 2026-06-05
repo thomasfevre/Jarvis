@@ -150,3 +150,37 @@ AX context into the CLI planner request.
 
 Add a post-step observe/verify loop in `PlanExecutor`, then map AX element labels
 to click coordinates before executing click plans.
+
+## 2026-06-06 - Doctor and clickElement Targeting
+
+### Implemented
+
+- Added `swift run jarvis doctor`.
+- Doctor reports:
+  - resolved Codex executable
+  - Accessibility trust status
+  - focused application
+  - whether the Accessibility tree is empty
+- Added `AgentAction.clickElement(label:)`.
+- Codex planner prompt/schema now supports `clickElement`.
+- CLI resolves `clickElement` into coordinate `click` using rendered
+  Accessibility `bounds=(x,y,w,h)`.
+
+### Verified
+
+- `swift test` passes with 34 tests.
+- `swift run jarvis doctor` reports Codex path and Accessibility status.
+- `swift run jarvis observe` returns focused app and Accessibility tree.
+- `swift run jarvis plan "Click the focused text area"` produces `clickElement`
+  from Codex and renders a resolved coordinate `click`.
+
+### Current Limitations
+
+- Element matching is currently string-based over the rendered Accessibility tree.
+- No post-action observe/retry loop yet.
+- No menu-bar, push-to-talk, or audio path yet.
+
+### Next Recommended Step
+
+Add post-action observation after each executed step, then make element matching
+structured instead of line/string based.
