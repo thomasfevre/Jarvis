@@ -1,7 +1,7 @@
 import Testing
 @testable import JarvisCore
 
-@Test func accessibilityObserverUsesInjectedSource() {
+@Test func accessibilityObserverUsesInjectedSource() async {
     let observer = MacOSAccessibilityObserver(
         source: StubAccessibilitySource(
             snapshot: AccessibilityApplicationSnapshot(
@@ -14,17 +14,25 @@ import Testing
                     ]
                 )
             )
+        ),
+        visibleTextSource: StubVisibleTextSource(
+            visibleTexts: [
+                VisibleTextObservation(text: "Obsidian", x: 47, y: 236, width: 72, height: 20, confidence: 0.94),
+            ]
         )
     )
 
-    let observation = observer.observe()
+    let observation = await observer.observe()
 
     #expect(observation.focusedApplication == "Notes")
     #expect(observation.accessibilityTree == """
     AXWindow "Meeting Notes"
       AXTextArea value="Agenda"
     """)
-    #expect(observation.screenshotDescription == nil)
+    #expect(observation.screenshotDescription == "1 visible text region detected")
+    #expect(observation.visibleTexts == [
+        VisibleTextObservation(text: "Obsidian", x: 47, y: 236, width: 72, height: 20, confidence: 0.94),
+    ])
 }
 
 @Test func accessibilityTreeRendererLimitsDepth() {
@@ -66,14 +74,14 @@ import Testing
     """)
 }
 
-@Test func accessibilityObserverReportsEmptyTreeWhenSourceCannotReadElements() {
+@Test func accessibilityObserverReportsEmptyTreeWhenSourceCannotReadElements() async {
     let observer = MacOSAccessibilityObserver(
         source: StubAccessibilitySource(
             snapshot: AccessibilityApplicationSnapshot(applicationName: "Finder", rootElement: nil)
         )
     )
 
-    let observation = observer.observe()
+    let observation = await observer.observe()
 
     #expect(observation.focusedApplication == "Finder")
     #expect(observation.accessibilityTree == "")
@@ -84,5 +92,13 @@ private struct StubAccessibilitySource: AccessibilityObservationSource {
 
     func focusedApplicationSnapshot(maxDepth: Int, maxChildren: Int) -> AccessibilityApplicationSnapshot? {
         snapshot
+    }
+}
+
+private struct StubVisibleTextSource: VisibleTextObservationSource {
+    let visibleTexts: [VisibleTextObservation]
+
+    func observeVisibleTexts() async -> [VisibleTextObservation] {
+        visibleTexts
     }
 }

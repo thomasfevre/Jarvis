@@ -25,7 +25,10 @@ import Testing
             observation: ScreenObservation(
                 focusedApplication: "Finder",
                 accessibilityTree: "[button] Notes",
-                screenshotDescription: "Desktop with Finder open"
+                screenshotDescription: "Desktop with Finder open",
+                visibleTexts: [
+                    VisibleTextObservation(text: "Obsidian", x: 47, y: 236, width: 72, height: 20, confidence: 0.94),
+                ]
             )
         )
     )
@@ -42,6 +45,7 @@ import Testing
     ))
     #expect(await runner.lastPrompt?.contains("Open Notes") == true)
     #expect(await runner.lastPrompt?.contains("Finder") == true)
+    #expect(await runner.lastPrompt?.contains(#""Obsidian" bounds=(47,236,72,20)"#) == true)
     #expect(await runner.lastPrompt?.contains("Return only JSON") == true)
 }
 

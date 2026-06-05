@@ -8,12 +8,12 @@ struct JarvisCommand {
 
             switch command {
             case .doctor:
-                print(DoctorCommand.render(Self.doctorReport()))
+                print(DoctorCommand.render(await Self.doctorReport()))
             case .observe:
-                print(ObserveCommand.render(Self.currentObservation()))
+                print(ObserveCommand.render(await Self.currentObservation()))
             case let .plan(command):
                 let provider = CodexPlannerProvider(runner: CodexExecCommandRunner())
-                let observation = Self.currentObservation()
+                let observation = await Self.currentObservation()
                 let plan = try await provider.plan(
                     for: PlanningRequest(
                         transcript: command.transcript,
@@ -39,15 +39,16 @@ struct JarvisCommand {
         }
     }
 
-    static func currentObservation() -> ScreenObservation {
-        MacOSAccessibilityObserver().observe()
+    static func currentObservation() async -> ScreenObservation {
+        await MacOSAccessibilityObserver(visibleTextSource: MacOSVisionTextObservationSource()).observe()
     }
 
-    static func doctorReport() -> DoctorReport {
-        let observation = currentObservation()
+    static func doctorReport() async -> DoctorReport {
+        let observation = await currentObservation()
         return DoctorReport(
             codexExecutable: CodexExecCommandRunner.defaultCodexExecutable(),
             accessibilityTrusted: MacOSAccessibilitySource.isProcessTrusted(),
+            screenCaptureTrusted: MacOSVisionTextObservationSource.isScreenCaptureTrusted(),
             focusedApplication: observation.focusedApplication,
             accessibilityTreeIsEmpty: observation.accessibilityTree.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         )

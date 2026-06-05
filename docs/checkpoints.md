@@ -184,3 +184,44 @@ to click coordinates before executing click plans.
 
 Add post-action observation after each executed step, then make element matching
 structured instead of line/string based.
+
+## 2026-06-06 - Visual Observation v1
+
+### Implemented
+
+- Added `VisibleTextObservation` to `ScreenObservation`.
+- Added a `VisibleTextObservationSource` boundary so screenshot OCR is injectable
+  in tests.
+- Added `MacOSVisionTextObservationSource` using ScreenCaptureKit screenshot
+  capture and Apple Vision text recognition.
+- `swift run jarvis observe` now prints a `Visible text:` section with OCR text,
+  bounds, and confidence.
+- `swift run jarvis doctor` now reports Screen Recording permission status.
+- Codex planner prompts now include visible screenshot text and OCR bounds.
+- `clickElement` resolution now tries Accessibility bounds first, then visible
+  screenshot text bounds.
+
+### Verified
+
+- `swift test` passes with 35 tests.
+- `swift run jarvis doctor` reports:
+  - Codex executable found
+  - Accessibility trusted
+  - Screen Recording trusted
+- `swift run jarvis observe` detects visible cmux sidebar text, including
+  `Obsidian`, `Needs input`, `Jarvis`, and other sessions.
+- `swift run jarvis plan "Click Obsidian"` produces `clickElement("Obsidian")`
+  and resolves it to an OCR-based coordinate click in the sidebar.
+
+### Current Limitations
+
+- OCR can miss icon-only controls.
+- OCR can merge or split nearby labels depending on rendering.
+- The click target is currently the center of the matched text bounds, not the
+  center of a surrounding row/control.
+- No post-action observe/retry loop yet.
+
+### Next Recommended Step
+
+Add post-action observation and retry, then improve OCR grouping so text matches
+can target the containing row/control instead of only the text glyph bounds.

@@ -68,7 +68,20 @@ public struct CodexPlannerProvider<Runner: CodexRunning>: PlanningProvider {
 
         Accessibility tree:
         \(request.observation.accessibilityTree)
+
+        Visible screenshot text:
+        \(Self.renderVisibleTexts(request.observation.visibleTexts))
         """
+    }
+
+    private static func renderVisibleTexts(_ visibleTexts: [VisibleTextObservation]) -> String {
+        guard !visibleTexts.isEmpty else { return "not detected" }
+
+        return visibleTexts
+            .map { text in
+                #""\#(text.text)" bounds=(\#(text.x),\#(text.y),\#(text.width),\#(text.height)) confidence=\#(String(format: "%.2f", text.confidence))"#
+            }
+            .joined(separator: "\n")
     }
 
     static func extractJSON(from response: String) -> String {

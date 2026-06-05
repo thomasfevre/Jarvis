@@ -1,9 +1,15 @@
 import AppKit
 import ApplicationServices
 import Foundation
+import ScreenCaptureKit
+import Vision
 
 public protocol AccessibilityObservationSource: Sendable {
     func focusedApplicationSnapshot(maxDepth: Int, maxChildren: Int) -> AccessibilityApplicationSnapshot?
+}
+
+public protocol VisibleTextObservationSource: Sendable {
+    func observeVisibleTexts() async -> [VisibleTextObservation]
 }
 
 public struct AccessibilityApplicationSnapshot: Equatable, Sendable {
@@ -52,25 +58,31 @@ public struct AccessibilityElementSnapshot: Equatable, Sendable {
 
 public struct MacOSAccessibilityObserver: Sendable {
     private let source: any AccessibilityObservationSource
+    private let visibleTextSource: any VisibleTextObservationSource
     private let maxDepth: Int
     private let maxChildren: Int
 
     public init(
         source: any AccessibilityObservationSource = MacOSAccessibilitySource(),
+        visibleTextSource: any VisibleTextObservationSource = EmptyVisibleTextObservationSource(),
         maxDepth: Int = 6,
         maxChildren: Int = 80
     ) {
         self.source = source
+        self.visibleTextSource = visibleTextSource
         self.maxDepth = max(0, maxDepth)
         self.maxChildren = max(0, maxChildren)
     }
 
-    public func observe() -> ScreenObservation {
+    public func observe() async -> ScreenObservation {
+        let visibleTexts = await visibleTextSource.observeVisibleTexts()
+
         guard let snapshot = source.focusedApplicationSnapshot(maxDepth: maxDepth, maxChildren: maxChildren) else {
             return ScreenObservation(
                 focusedApplication: nil,
                 accessibilityTree: "",
-                screenshotDescription: nil
+                screenshotDescription: Self.screenshotDescription(for: visibleTexts),
+                visibleTexts: visibleTexts
             )
         }
 
@@ -79,8 +91,17 @@ public struct MacOSAccessibilityObserver: Sendable {
             accessibilityTree: snapshot.rootElement.map {
                 Self.renderAccessibilityTree($0, maxDepth: maxDepth, maxChildren: maxChildren)
             } ?? "",
-            screenshotDescription: nil
+            screenshotDescription: Self.screenshotDescription(for: visibleTexts),
+            visibleTexts: visibleTexts
         )
+    }
+
+    private static func screenshotDescription(for visibleTexts: [VisibleTextObservation]) -> String? {
+        guard !visibleTexts.isEmpty else { return nil }
+        if visibleTexts.count == 1 {
+            return "1 visible text region detected"
+        }
+        return "\(visibleTexts.count) visible text regions detected"
     }
 
     public static func renderAccessibilityTree(
@@ -113,6 +134,86 @@ public struct MacOSAccessibilityObserver: Sendable {
         let omitted = element.children.count - visibleChildren.count
         if omitted > 0 {
             lines.append("\(indent)  ... \(omitted) more children")
+        }
+    }
+}
+
+public struct EmptyVisibleTextObservationSource: VisibleTextObservationSource {
+    public init() {}
+
+    public func observeVisibleTexts() async -> [VisibleTextObservation] {
+        []
+    }
+}
+
+public struct MacOSVisionTextObservationSource: VisibleTextObservationSource {
+    private let captureScreenshot: @Sendable () async -> CGImage?
+
+    public init(captureScreenshot: @escaping @Sendable () async -> CGImage? = {
+        await Self.captureMainDisplayScreenshot()
+    }) {
+        self.captureScreenshot = captureScreenshot
+    }
+
+    public func observeVisibleTexts() async -> [VisibleTextObservation] {
+        guard let screenshot = await captureScreenshot() else { return [] }
+
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+
+        let handler = VNImageRequestHandler(cgImage: screenshot, options: [:])
+        do {
+            try handler.perform([request])
+        } catch {
+            return []
+        }
+
+        let width = CGFloat(screenshot.width)
+        let height = CGFloat(screenshot.height)
+
+        return (request.results ?? [])
+            .compactMap { observation -> VisibleTextObservation? in
+                guard let candidate = observation.topCandidates(1).first else { return nil }
+                let bounds = observation.boundingBox
+                return VisibleTextObservation(
+                    text: candidate.string,
+                    x: Int((bounds.minX * width).rounded()),
+                    y: Int(((1 - bounds.maxY) * height).rounded()),
+                    width: Int((bounds.width * width).rounded()),
+                    height: Int((bounds.height * height).rounded()),
+                    confidence: Double(candidate.confidence)
+                )
+            }
+            .filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    public static func isScreenCaptureTrusted() -> Bool {
+        CGPreflightScreenCaptureAccess()
+    }
+
+    public static func captureMainDisplayScreenshot() async -> CGImage? {
+        guard isScreenCaptureTrusted() else { return nil }
+
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(
+                false,
+                onScreenWindowsOnly: true
+            )
+            guard let display = content.displays.first else { return nil }
+
+            let filter = SCContentFilter(display: display, excludingWindows: [])
+            let configuration = SCStreamConfiguration()
+            configuration.width = display.width
+            configuration.height = display.height
+            configuration.showsCursor = true
+
+            return try await SCScreenshotManager.captureImage(
+                contentFilter: filter,
+                configuration: configuration
+            )
+        } catch {
+            return nil
         }
     }
 }

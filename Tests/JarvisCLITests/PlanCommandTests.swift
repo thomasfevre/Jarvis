@@ -46,12 +46,17 @@ import JarvisCore
         ScreenObservation(
             focusedApplication: "Notes",
             accessibilityTree: "[button] New note",
-            screenshotDescription: nil
+            screenshotDescription: nil,
+            visibleTexts: [
+                VisibleTextObservation(text: "Obsidian", x: 18, y: 232, width: 72, height: 22, confidence: 0.91),
+            ]
         )
     )
 
     #expect(output.contains("Focused application: Notes"))
     #expect(output.contains("[button] New note"))
+    #expect(output.contains("Visible text:"))
+    #expect(output.contains(#""Obsidian" bounds=(18,232,72,22)"#))
 }
 
 @Test func observeCommandRendersHelpWhenAccessibilityTreeIsEmpty() {
@@ -71,6 +76,7 @@ import JarvisCore
     let report = DoctorReport(
         codexExecutable: "/Applications/Codex.app/Contents/Resources/codex",
         accessibilityTrusted: false,
+        screenCaptureTrusted: false,
         focusedApplication: "cmux",
         accessibilityTreeIsEmpty: true
     )
@@ -79,8 +85,10 @@ import JarvisCore
 
     #expect(output.contains("Codex executable: /Applications/Codex.app/Contents/Resources/codex"))
     #expect(output.contains("Accessibility trusted: no"))
+    #expect(output.contains("Screen Recording trusted: no"))
     #expect(output.contains("Focused application: cmux"))
     #expect(output.contains("System Settings > Privacy & Security > Accessibility"))
+    #expect(output.contains("System Settings > Privacy & Security > Screen & System Audio Recording"))
 }
 
 @Test func planCommandRendersConfirmationRequired() throws {
@@ -125,4 +133,26 @@ import JarvisCore
     let resolved = PlanCommand.resolveElementActions(in: plan, using: observation)
 
     #expect(resolved.steps[0].action == .clickElement(label: "Search"))
+}
+
+@Test func planCommandResolvesClickElementFromVisibleTextBounds() throws {
+    let plan = AgentPlan(
+        summary: "Click Obsidian",
+        steps: [
+            AgentStep(id: "click-obsidian", reason: "Use visible sidebar text", action: .clickElement(label: "Obsidian")),
+        ]
+    )
+    let observation = ScreenObservation(
+        focusedApplication: "cmux",
+        accessibilityTree: "AXTextArea bounds=(180,91,1548,938)",
+        screenshotDescription: nil,
+        visibleTexts: [
+            VisibleTextObservation(text: "Skim", x: 18, y: 56, width: 42, height: 20, confidence: 0.89),
+            VisibleTextObservation(text: "Obsidian", x: 47, y: 236, width: 72, height: 20, confidence: 0.94),
+        ]
+    )
+
+    let resolved = PlanCommand.resolveElementActions(in: plan, using: observation)
+
+    #expect(resolved.steps[0].action == .click(x: 83, y: 246, label: "Obsidian"))
 }
