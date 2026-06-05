@@ -20,7 +20,11 @@ struct JarvisCommand {
                         observation: observation
                     )
                 )
-                let resolvedPlan = PlanCommand.resolveElementActions(in: plan, using: observation)
+                let resolvedPlan = PlanCommand.resolveElementActions(
+                    in: plan,
+                    using: observation,
+                    transcript: command.transcript
+                )
 
                 print(try PlanCommand.render(resolvedPlan))
 

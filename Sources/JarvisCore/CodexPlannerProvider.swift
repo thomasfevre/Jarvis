@@ -53,7 +53,10 @@ public struct CodexPlannerProvider<Runner: CodexRunning>: PlanningProvider {
         - { "type": "openApplication", "name": "Application Name" }
         - { "type": "shell", "command": "command" }
 
-        Prefer clickElement over raw click when an Accessibility element label is visible.
+        Prefer clickElement over raw click when an Accessibility element label or visible
+        screenshot text is visible. If the user asks to click/select/tap visible text,
+        use clickElement for that text. Do not use openApplication for a click request
+        when matching visible screenshot text is present.
         Prefer macOS UI actions over shell commands. Use shell only when the user explicitly asks
         for a command-line action. Jarvis will require confirmation before risky actions.
 

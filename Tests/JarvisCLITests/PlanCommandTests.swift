@@ -156,3 +156,28 @@ import JarvisCore
 
     #expect(resolved.steps[0].action == .click(x: 83, y: 246, label: "Obsidian"))
 }
+
+@Test func planCommandRewritesOpenApplicationToVisibleClickWhenUserAskedToClick() throws {
+    let plan = AgentPlan(
+        summary: "Open Obsidian",
+        steps: [
+            AgentStep(id: "open-obsidian", reason: "Planner treated click as open", action: .openApplication(name: "Obsidian")),
+        ]
+    )
+    let observation = ScreenObservation(
+        focusedApplication: "Codex",
+        accessibilityTree: "AXWindow \"Codex\"",
+        screenshotDescription: nil,
+        visibleTexts: [
+            VisibleTextObservation(text: "• Obsidian Vault", x: 15, y: 331, width: 123, height: 15, confidence: 0.5),
+        ]
+    )
+
+    let resolved = PlanCommand.resolveElementActions(
+        in: plan,
+        using: observation,
+        transcript: "Click Obsidian"
+    )
+
+    #expect(resolved.steps[0].action == .click(x: 76, y: 338, label: "• Obsidian Vault"))
+}

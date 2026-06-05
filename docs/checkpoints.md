@@ -225,3 +225,11 @@ structured instead of line/string based.
 
 Add post-action observation and retry, then improve OCR grouping so text matches
 can target the containing row/control instead of only the text glyph bounds.
+
+### Follow-up Fix
+
+- If the transcript asks to click/select/tap and Codex returns
+  `openApplication(name:)`, Jarvis now rewrites that step to a visible OCR click
+  when matching text is present.
+- Planner instructions now explicitly say not to use `openApplication` for click
+  requests when matching visible screenshot text is present.

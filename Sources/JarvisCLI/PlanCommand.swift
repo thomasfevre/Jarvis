@@ -66,21 +66,42 @@ public struct PlanCommand: Equatable, Sendable {
         }
     }
 
-    public static func resolveElementActions(in plan: AgentPlan, using observation: ScreenObservation) -> AgentPlan {
+    public static func resolveElementActions(
+        in plan: AgentPlan,
+        using observation: ScreenObservation,
+        transcript: String? = nil
+    ) -> AgentPlan {
         let steps = plan.steps.map { step in
-            guard case let .clickElement(label) = step.action else {
+            switch step.action {
+            case let .clickElement(label):
+                if let click = clickAction(for: label, in: observation.accessibilityTree)
+                    ?? clickAction(for: label, in: observation.visibleTexts) {
+                    return AgentStep(id: step.id, reason: step.reason, action: click)
+                }
+
+                return step
+
+            case let .openApplication(name):
+                if transcriptIsClickRequest(transcript),
+                   let click = clickAction(for: name, in: observation.visibleTexts) {
+                    return AgentStep(id: step.id, reason: step.reason, action: click)
+                }
+
+                return step
+
+            default:
                 return step
             }
-
-            if let click = clickAction(for: label, in: observation.accessibilityTree)
-                ?? clickAction(for: label, in: observation.visibleTexts) {
-                return AgentStep(id: step.id, reason: step.reason, action: click)
-            }
-
-            return step
         }
 
         return AgentPlan(summary: plan.summary, steps: steps)
+    }
+
+    private static func transcriptIsClickRequest(_ transcript: String?) -> Bool {
+        guard let transcript else { return false }
+        let normalized = normalizedSearchString(transcript)
+        let clickTokens = ["click", "clic", "clique", "cliquer", "tap", "press", "select", "sélectionne", "selectionne"]
+        return clickTokens.contains { normalized.split(separator: " ").contains(Substring($0)) }
     }
 
     private static func clickAction(for label: String, in accessibilityTree: String) -> AgentAction? {
